@@ -120,6 +120,16 @@ async def register_user(
 
         await db.commit()
         await db.refresh(new_user)
+
+        notificator: EmailSenderInterface = get_accounts_email_notificator()
+        activation_url = f"https://your-frontend.com/activate?token={activation_token.token}&email={new_user.email}"
+
+        await notificator.send_email(
+            to=new_user.email,
+            subject="Activate your account",
+            body=f"Hello,\n\nPlease activate your account by clicking the link: {activation_url}"
+        )
+
     except SQLAlchemyError as e:
         await db.rollback()
         raise HTTPException(
@@ -263,6 +273,16 @@ async def request_password_reset_token(
     db.add(reset_token)
     await db.commit()
 
+    notificator: EmailSenderInterface = get_accounts_email_notificator()
+    reset_url = f"https://your-frontend.com/reset-password?token={reset_token.token}&email={user.email}"
+
+    await notificator.send_email(
+        to=user.email,
+        subject="Password Reset Request",
+        body=f"Hi,\n\nYou requested a password reset. Click the link to reset your password: {reset_url}"
+    )
+
+
     return MessageResponseSchema(
         message="If you are registered, you will receive an email with instructions."
     )
@@ -369,6 +389,14 @@ async def reset_password(
         user.password = data.password
         await db.run_sync(lambda s: s.delete(token_record))
         await db.commit()
+        notificator: EmailSenderInterface = get_accounts_email_notificator()
+
+        await notificator.send_email(
+            to=user.email,
+            subject="Password Reset Successful",
+            body="Your password has been successfully reset."
+        )
+
     except SQLAlchemyError:
         await db.rollback()
         raise HTTPException(

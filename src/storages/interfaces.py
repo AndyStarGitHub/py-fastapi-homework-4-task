@@ -24,3 +24,4 @@ class S3StorageInterface(ABC):
         :return: The full URL to access the file.
         """
         pass
+

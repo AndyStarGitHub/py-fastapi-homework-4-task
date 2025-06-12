@@ -2,7 +2,7 @@ import os
 
 from fastapi import Depends
 
-from config.settings import TestingSettings, Settings, BaseAppSettings
+from config.settings import TestingSettings, Settings, BaseAppSettings, EmailSettings
 from notifications import EmailSenderInterface, EmailSender
 from security.interfaces import JWTAuthManagerInterface
 from security.token_manager import JWTAuthManager
@@ -53,6 +53,36 @@ def get_jwt_auth_manager(settings: BaseAppSettings = Depends(get_settings)) -> J
     )
 
 email_settings = EmailSettings()
+
+
+async def get_current_user(
+    request: Request,
+    db: AsyncSession = Depends(get_db),
+    jwt_manager: JWTAuthManagerInterface = Depends(get_jwt_auth_manager)
+) -> UserModel:
+    auth_header = request.headers.get("Authorization")
+    if not auth_header:
+        raise HTTPException(status_code=401, detail="Authorization header is missing")
+
+    parts = auth_header.split()
+    if len(parts) != 2 or parts[0].lower() != "bearer":
+        raise HTTPException(status_code=401, detail="Invalid Authorization header format. Expected 'Bearer <token>'")
+
+    token = parts[1]
+    try:
+        payload = jwt_manager.decode_access_token(token)
+        user_id = payload.get("user_id")
+        if user_id is None:
+            raise HTTPException(status_code=401, detail="Invalid token payload")
+    except BaseSecurityError:
+        raise HTTPException(status_code=401, detail="Token has expired.")
+
+    user = await db.get(UserModel, user_id)
+    if not user or not user.is_active:
+        raise HTTPException(status_code=401, detail="User not found or not active.")
+
+    return user
+
 
 def get_accounts_email_notificator() -> EmailSenderInterface:
     return SMTPEmailSender(

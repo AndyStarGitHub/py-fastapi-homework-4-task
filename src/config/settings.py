@@ -5,6 +5,16 @@ from typing import Any
 from pydantic_settings import BaseSettings
 
 
+class EmailSettings(BaseSettings):
+    SMTP_HOST: str
+    SMTP_PORT: int
+    SMTP_USER: str
+    SMTP_PASS: str
+
+    class Config:
+        env_file = ".env"
+
+
 class BaseAppSettings(BaseSettings):
     BASE_DIR: Path = Path(__file__).parent.parent
     PATH_TO_DB: str = str(BASE_DIR / "database" / "source" / "theater.db")

@@ -5,16 +5,20 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from typing import Annotated
 from datetime import date
 
+from sqlalchemy import select
+
+from config.dependencies import get_current_user, get_s3_storage_client
 from database import get_db, UserModel, UserProfileModel
-from dependencies import get_current_user
+
 from schemas.profiles import ProfileResponseSchema
+from storages import S3StorageInterface
 from validation import (
     validate_name,
     validate_gender,
     validate_birth_date,
     validate_image,
 )
-from storage import S3StorageInterface, get_s3_storage_client  # ✅ тобі потрібно реалізувати ці інтерфейси
+
 
 router = APIRouter()
 
@@ -39,8 +43,7 @@ async def create_user_profile(
     current_user: UserModel = Depends(get_current_user),
     s3_client: S3StorageInterface = Depends(get_s3_storage_client),
 ):
-    # 1️⃣ Token validation already handled by Depends(get_current_user)
-    # Add extra error if no auth header
+
     if not request.headers.get("authorization"):
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
@@ -53,7 +56,6 @@ async def create_user_profile(
             detail="Invalid Authorization header format. Expected 'Bearer <token>'"
         )
 
-    # 2️⃣ Authorization Rules
     is_admin = current_user.group.name in ("admin", "moderator")
     if current_user.id != user_id and not is_admin:
         raise HTTPException(
@@ -61,7 +63,6 @@ async def create_user_profile(
             detail="You don't have permission to edit this profile."
         )
 
-    # 3️⃣ User existence and status
     user = await db.get(UserModel, user_id)
     if not user or not user.is_active:
         raise HTTPException(
@@ -69,17 +70,23 @@ async def create_user_profile(
             detail="User not found or not active."
         )
 
-    # 4️⃣ Check for existing profile
-    existing = await db.execute(
-        db.query(ProfileModel).filter(ProfileModel.user_id == user_id)
-    )
+    stmt = select(UserProfileModel).where(UserProfileModel.user_id == user_id)
+    result = await db.execute(stmt)
+    existing = result.scalars().first()
+
+    if existing:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="User already has a profile."
+        )
+
     if existing.scalars().first():
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
             detail="User already has a profile."
         )
 
-    # ✅ Validation
+
     validated_first_name = validate_name(first_name)
     validated_last_name = validate_name(last_name)
     validated_gender = validate_gender(gender)
@@ -101,7 +108,7 @@ async def create_user_profile(
         )
 
     # 6️⃣ Create and store profile
-    profile = ProfileModel(
+    profile = UserProfileModel(
         user_id=user_id,
         first_name=validated_first_name,
         last_name=validated_last_name,

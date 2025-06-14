@@ -3,12 +3,15 @@ from fastapi import (
 )
 from sqlalchemy.ext.asyncio import AsyncSession
 from typing import Annotated
-from datetime import date
 
 from sqlalchemy import select
 
 from config.dependencies import get_current_user, get_s3_storage_client
-from database import get_db, UserModel, UserProfileModel
+from database import (
+    get_db,
+    UserProfileModel,
+    UserModel
+)
 
 from schemas.profiles import ProfileResponseSchema
 from storages import S3StorageInterface
@@ -80,11 +83,11 @@ async def create_user_profile(
             detail="User already has a profile."
         )
 
-    if existing.scalars().first():
-        raise HTTPException(
-            status_code=status.HTTP_400_BAD_REQUEST,
-            detail="User already has a profile."
-        )
+    # if existing.scalars().first():
+    #     raise HTTPException(
+    #         status_code=status.HTTP_400_BAD_REQUEST,
+    #         detail="User already has a profile."
+    #     )
 
 
     validated_first_name = validate_name(first_name)

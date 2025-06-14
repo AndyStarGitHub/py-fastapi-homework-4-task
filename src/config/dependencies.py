@@ -1,8 +1,12 @@
 import os
 
-from fastapi import Depends
+from fastapi import Depends, HTTPException
+from sqlalchemy.ext.asyncio import AsyncSession
+from starlette.requests import Request
 
 from config.settings import TestingSettings, Settings, BaseAppSettings, EmailSettings
+from database import UserModel
+from exceptions import BaseSecurityError
 from notifications import EmailSenderInterface, EmailSender
 from security.interfaces import JWTAuthManagerInterface
 from security.token_manager import JWTAuthManager

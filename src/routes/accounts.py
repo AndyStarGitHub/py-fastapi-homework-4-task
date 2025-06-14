@@ -65,7 +65,6 @@ router = APIRouter()
         },
     }
 )
-@router.post("/register/", ...)
 async def register_user(
     user_data: UserRegistrationRequestSchema,
     db: AsyncSession = Depends(get_db),
@@ -124,7 +123,7 @@ async def register_user(
         await db.commit()
         await db.refresh(new_user)
 
-        notificator: EmailSenderInterface = Depends(get_accounts_email_notificator)
+        # notificator: EmailSenderInterface = Depends(get_accounts_email_notificator)
 
         activation_url = f"https://your-frontend.com/activate?token={activation_token.token}&email={new_user.email}"
 
@@ -278,7 +277,7 @@ async def request_password_reset_token(
     db.add(reset_token)
     await db.commit()
 
-    notificator: EmailSenderInterface = Depends(get_accounts_email_notificator)
+    # notificator: EmailSenderInterface = Depends(get_accounts_email_notificator)
 
     reset_url = f"https://your-frontend.com/reset-password?token={reset_token.token}&email={user.email}"
 
@@ -395,7 +394,7 @@ async def reset_password(
         user.password = data.password
         await db.run_sync(lambda s: s.delete(token_record))
         await db.commit()
-        notificator: EmailSenderInterface = Depends(get_accounts_email_notificator)
+        # notificator: EmailSenderInterface = Depends(get_accounts_email_notificator)
 
         await notificator.send_email(
             to=user.email,
